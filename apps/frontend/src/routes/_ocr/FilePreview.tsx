@@ -40,6 +40,7 @@ export function FilePreview({ file, result }: FilePreviewProps) {
 	const activeBlock = clickedBlock || hoveredBlock || null
 
 	// 计算图片的缩放比例和偏移量
+	// Now using 0-1000 normalized coordinates for bbox
 	const [imageScale, setImageScale] = useState({ x: 1, y: 1, offsetX: 0, offsetY: 0 })
 	useEffect(() => {
 		if (!imageRef.current || file?.type === 'application/pdf') return
@@ -52,9 +53,10 @@ export function FilePreview({ file, result }: FilePreviewProps) {
 			const containerRect = img.parentElement?.getBoundingClientRect()
 			if (!containerRect) return
 
-			// 计算缩放比例（显示尺寸 / 原始尺寸）
-			const scaleX = imgRect.width / img.naturalWidth
-			const scaleY = imgRect.height / img.naturalHeight
+			// Bbox is in 0-1000 normalized coordinates from MaaS API
+			// Calculate scale from displayed size to 1000
+			const scaleX = imgRect.width / 1000
+			const scaleY = imgRect.height / 1000
 
 			// 计算图片在容器中的偏移量（考虑 object-contain 的居中效果）
 			const offsetX = imgRect.left - containerRect.left
@@ -145,8 +147,10 @@ export function FilePreview({ file, result }: FilePreviewProps) {
 		const metrics = pdfPageMetrics[pageNumber]
 		if (!metrics) return null
 
-		const scaleX = metrics.width / pdfOriginalWidth
-		const scaleY = metrics.height / pdfOriginalHeight
+		// Bbox is in 0-1000 normalized coordinates from MaaS API
+		// Scale to actual displayed canvas size
+		const scaleX = metrics.width / 1000
+		const scaleY = metrics.height / 1000
 
 		return (
 			<HighlightOverlay

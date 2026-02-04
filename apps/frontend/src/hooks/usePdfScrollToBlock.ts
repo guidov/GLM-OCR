@@ -132,7 +132,9 @@ export function usePdfScrollToBlock(
 			const pageOffsetY = pageRect.top - containerRect.top + scrollContainer.scrollTop
 
 			const canvasRect = canvas.getBoundingClientRect()
-			const scaleY = canvasRect.height / pdfOriginalHeight
+			// Bbox is in 0-1000 normalized coordinates from MaaS API
+			// Scale to actual displayed canvas size
+			const scaleY = canvasRect.height / 1000
 
 			// bbox 现在是相对坐标（每页内的坐标），直接使用
 			const yWithinPage = clickedBlock.bbox?.[1] ?? 0

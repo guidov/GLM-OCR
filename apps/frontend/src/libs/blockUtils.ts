@@ -29,25 +29,28 @@ export function findBlockAtPoint(
 }
 
 /**
- * PDF 坐标转换：从屏幕坐标转换为 PDF 相对坐标
+ * PDF 坐标转换：从屏幕坐标转换为 0-1000 归一化坐标
+ * Bbox from backend is in 0-1000 normalized format
  */
 export function convertPdfScreenToRelative(
 	screenX: number,
 	screenY: number,
 	canvasRect: DOMRect,
-	pdfOriginalWidth: number,
-	pdfOriginalHeight: number
+	_pdfOriginalWidth: number,  // kept for API compatibility but not used
+	_pdfOriginalHeight: number  // kept for API compatibility but not used
 ): { x: number; y: number } {
-	const scaleX = canvasRect.width / pdfOriginalWidth
-	const scaleY = canvasRect.height / pdfOriginalHeight
+	// Convert screen coordinates to 0-1000 normalized coordinates
+	const scaleX = 1000 / canvasRect.width
+	const scaleY = 1000 / canvasRect.height
 	return {
-		x: screenX / scaleX,
-		y: screenY / scaleY
+		x: screenX * scaleX,
+		y: screenY * scaleY
 	}
 }
 
 /**
- * 图片坐标转换：从屏幕坐标转换为原始图片坐标
+ * 图片坐标转换：从屏幕坐标转换为 0-1000 归一化坐标
+ * Bbox from backend is in 0-1000 normalized format
  */
 export function convertImageScreenToOriginal(
 	screenX: number,
@@ -55,13 +58,12 @@ export function convertImageScreenToOriginal(
 	imgElement: HTMLImageElement
 ): { x: number; y: number } {
 	const imgRect = imgElement.getBoundingClientRect()
-	const imgNaturalWidth = imgElement.naturalWidth
-	const imgNaturalHeight = imgElement.naturalHeight
 	const imgDisplayWidth = imgRect.width
 	const imgDisplayHeight = imgRect.height
 
-	const scaleX = imgNaturalWidth / imgDisplayWidth
-	const scaleY = imgNaturalHeight / imgDisplayHeight
+	// Convert to 0-1000 normalized coordinates
+	const scaleX = 1000 / imgDisplayWidth
+	const scaleY = 1000 / imgDisplayHeight
 
 	return {
 		x: screenX * scaleX,
