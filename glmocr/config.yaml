@@ -32,10 +32,10 @@ pipeline:
   #
   # Note: When maas.enabled=true, the ocr_api and layout settings below are ignored.
   maas:
-    enabled: false # Set to true to use MaaS mode
-    api_url: https://open.bigmodel.cn/api/paas/v4/layout_parsing
+    enabled: true # Set to true to use MaaS mode
+    api_url: https://api.z.ai/api/paas/v4/layout_parsing
     model: glm-ocr
-    api_key: null # Required! Get from https://open.bigmodel.cn
+    api_key: 06980e392fb94c998531de790bcdece8.HXQwwDSPX2u7704u # Required! Get from https://open.bigmodel.cn
     verify_ssl: true
     connect_timeout: 30
     request_timeout: 300
@@ -173,7 +173,7 @@ pipeline:
   # Enable layout detection mode
   # - true: detect document regions (tables, figures, text blocks) then OCR each
   # - false: direct OCR on the whole image
-  enable_layout: true
+  enable_layout: false
 
   # Layout detection settings (used when enable_layout=true)
   layout:

@@ -6,6 +6,7 @@ import json
 from typing import Dict, Any, Optional, Callable, List, Union
 from pathlib import Path
 from app.core.ocr_client import LayoutAndOCRClient
+from app.core.maas_ocr_client import get_maas_client
 import httpx
 import base64
 import os
@@ -111,7 +112,15 @@ async def _call_ocr_service(
     if progress_callback:
         await progress_callback(0.0, f"Initializing OCR service for {page_count} pages")
     custom_url = config.get("custom_url", None)
-    cli = LayoutAndOCRClient()
+
+    # Use MaaS client by default, fallback to HTTP client if custom_url is provided
+    use_maas = config.get("use_maas", True)
+    if use_maas and not custom_url:
+        cli = get_maas_client()
+        logger.info("Using MaaS OCR client (GLM-OCR SDK)")
+    else:
+        cli = LayoutAndOCRClient(custom_url=custom_url)
+        logger.info(f"Using HTTP OCR client with URL: {custom_url or 'default'}")
     pages_result = []
     page_width = page_size.get("width")
     page_height = page_size.get("height")

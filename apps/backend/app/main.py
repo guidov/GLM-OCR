@@ -4,6 +4,10 @@ FastAPI应用入口
 import sys
 from pathlib import Path
 
+# Add GLM-OCR SDK to Python path
+glm_ocr_root = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(glm_ocr_root))
+
 
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
@@ -39,7 +43,16 @@ async def lifespan(app: FastAPI):
     # 1. 关闭任务系统
     await shutdown_task_system()
 
-    # 2. 关闭数据库连接
+    # 2. 关闭MaaS OCR客户端
+    try:
+        from app.core.maas_ocr_client import _maas_client_instance
+        if _maas_client_instance is not None:
+            _maas_client_instance.close()
+            logger.info("MaaS OCR client closed")
+    except Exception as e:
+        logger.warning(f"Error closing MaaS OCR client: {e}")
+
+    # 3. 关闭数据库连接
     await close_db()
 
     logger.info("Application shutdown complete")

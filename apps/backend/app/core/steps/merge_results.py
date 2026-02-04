@@ -119,6 +119,7 @@ async def _merge_to_markdown(
                     "bbox": block.get("layout_box"),
                     "block_id": block.get("index"),
                     "page_index": block.get("page_index"),
+                    "layout_type": layout_type,  # Preserve layout type for frontend
                 }
             )
     if progress_callback:
