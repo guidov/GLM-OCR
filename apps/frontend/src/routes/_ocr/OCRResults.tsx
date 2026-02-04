@@ -100,7 +100,7 @@ export function OCRResults({ result, fileName }: OCRResultsProps) {
 			<Tabs defaultValue='markdown' className='flex-1 flex flex-col overflow-hidden'>
 				{/* 固定在顶部的 TabsList */}
 				<div className='px-4 pt-4 pb-0 bg-white sticky top-0 z-10 flex items-center justify-between'>
-					<TabsList className='grid grid-cols-2'>
+					<TabsList className='grid grid-cols-2 w-[200px]'>
 						<TabsTrigger value='markdown' className='cursor-pointer'>
 							<AppWindowIcon className='size-4' />Markdown</TabsTrigger>
 						<TabsTrigger value='json' className='cursor-pointer'>
