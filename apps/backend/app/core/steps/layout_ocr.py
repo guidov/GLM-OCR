@@ -186,13 +186,19 @@ async def _call_ocr_service(
             # MaaS API returns coordinates in pixels (relative to the image size)
             # We normalize them to 0-1000 range for frontend consistency
             try:
+                # Debug logging to trace coordinate transformation
+                logger.info(f"DEBUG: Block {block_index} Raw Bbox: {block_bbox}, Page Size: {page_width}x{page_height}")
+                
                 normalized_layout_box = [
                     int(block_bbox[0] / page_width * 1000),
                     int(block_bbox[1] / page_height * 1000),
                     int(block_bbox[2] / page_width * 1000),
                     int(block_bbox[3] / page_height * 1000),
                 ]
-            except Exception:
+                
+                logger.info(f"DEBUG: Block {block_index} Normalized: {normalized_layout_box}")
+            except Exception as e:
+                logger.error(f"DEBUG: Normalization failed: {e}")
                 # Fallback if dimensions are invalid
                 normalized_layout_box = block_bbox
 
