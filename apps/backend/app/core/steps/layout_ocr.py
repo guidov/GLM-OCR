@@ -183,11 +183,22 @@ async def _call_ocr_service(
                     logger.warning(f"裁剪图片块 {block_idx} 失败: {str(e)}")
 
             # 构建块信息，添加 image_path 字段
-            # Use raw 0-1000 normalized bbox_2d from MaaS API for layout_box
-            # This allows the frontend to scale coordinates correctly regardless of DPI
+            # MaaS API returns coordinates in pixels (relative to the image size)
+            # We normalize them to 0-1000 range for frontend consistency
+            try:
+                normalized_layout_box = [
+                    int(block_bbox[0] / page_width * 1000),
+                    int(block_bbox[1] / page_height * 1000),
+                    int(block_bbox[2] / page_width * 1000),
+                    int(block_bbox[3] / page_height * 1000),
+                ]
+            except Exception:
+                # Fallback if dimensions are invalid
+                normalized_layout_box = block_bbox
+
             block_info = {
                 "layout_type": block_label,
-                "layout_box": block_bbox,  # Raw 0-1000 normalized coordinates from MaaS API
+                "layout_box": normalized_layout_box,
                 "content": block_content,
                 "index": block_index,
                 "image_path": image_path_field,  # 图片类型时包含裁剪后的路径
