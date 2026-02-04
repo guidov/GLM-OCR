@@ -3,6 +3,8 @@ import { Upload, Loader2 } from 'lucide-react'
 import { cn } from '@/libs/utils'
 import { uploadTask, getTaskStatus, type TaskStatus, type TaskStatusData } from '@/libs/api'
 import { toast } from 'sonner'
+import { useLanguageStore } from '@/store/useLanguageStore'
+import { t } from '@/i18n/translations'
 
 
 export type Layout = {
@@ -75,6 +77,7 @@ const formatFileSize = (bytes: number): string => {
 }
 
 export function FileUpload({ onFileUploaded, onTaskStatusChange }: FileUploadProps) {
+	const { language } = useLanguageStore()
 	const [selectedFile, setSelectedFile] = useState<UploadedFile | null>(null)
 	const [isDragging, setIsDragging] = useState(false)
 	const fileInputRef = useRef<HTMLInputElement>(null)
@@ -121,7 +124,9 @@ export function FileUpload({ onFileUploaded, onTaskStatusChange }: FileUploadPro
 		// 验证文件类型
 		if (!isValidFileType(file)) {
 			toast.error(
-				`不支持的文件格式。支持的格式：${ALLOWED_EXTENSIONS.join(', ').toUpperCase()}`
+				t('errors.unsupportedFormat', language, {
+					formats: ALLOWED_EXTENSIONS.join(', ').toUpperCase()
+				})
 			)
 			// 重置 input 的值
 			if (fileInputRef.current) {
@@ -133,7 +138,10 @@ export function FileUpload({ onFileUploaded, onTaskStatusChange }: FileUploadPro
 		// 验证文件大小
 		if (!isValidFileSize(file)) {
 			toast.error(
-				`文件大小超过限制。当前文件：${formatFileSize(file.size)}，最大允许：${formatFileSize(MAX_FILE_SIZE)}`
+				t('errors.fileTooLarge', language, {
+					current: formatFileSize(file.size),
+					max: formatFileSize(MAX_FILE_SIZE)
+				})
 			)
 			// 重置 input 的值
 			if (fileInputRef.current) {
@@ -174,7 +182,7 @@ export function FileUpload({ onFileUploaded, onTaskStatusChange }: FileUploadPro
 			}
 		} catch (error: any) {
 			// 上传失败
-			const errorMessage = error.response?.data?.message || error.message || '文件上传失败'
+			const errorMessage = error.response?.data?.message || error.message || t('errors.uploadFailed', language)
 			toast.error(errorMessage)
 			setSelectedFile(null)
 			setIsLoading(false)
@@ -245,7 +253,7 @@ export function FileUpload({ onFileUploaded, onTaskStatusChange }: FileUploadPro
 		<div className='h-full flex flex-col bg-white dark:bg-gray-900 border-r border-border'>
 			{/* 文件上传区域 */}
 			<div className='p-4'>
-				<h2 className='text-lg font-semibold mb-4'>文件上传</h2>
+				<h2 className='text-lg font-semibold mb-4'>{t('fileUpload.title', language)}</h2>
 				<div
 					className={cn(
 						'border-2 border-dashed rounded-lg py-8 px-4 text-center cursor-pointer transition-colors',
@@ -269,12 +277,12 @@ export function FileUpload({ onFileUploaded, onTaskStatusChange }: FileUploadPro
 					) : (
 						<>
 							<Upload className='size-12 mx-auto mb-4 text-gray-400' />
-							<p className='text-sm font-medium mb-1'>点击或拖拽文件到此处</p>
+							<p className='text-sm font-medium mb-1'>{t('fileUpload.dropText', language)}</p>
 							<p className='text-xs text-gray-500'>
-								格式：png/jpg/jpeg, pdf
+								{t('fileUpload.formats', language)}
 								{/* 格式：png/jpg/jpeg, pdf, doc, docx */}
 							</p>
-							<p className='text-xs text-gray-400 mt-1'>最大 20MB</p>
+							<p className='text-xs text-gray-400 mt-1'>{t('fileUpload.maxSize', language)}</p>
 						</>
 					)}
 				</div>

@@ -159,7 +159,12 @@ class MaaSOcrClient:
         glm_ocr = self._get_glm_ocr()
 
         # 处理所有图片
-        pipeline_results = glm_ocr.parse(image_paths, save_layout_visualization=False)
+        # return_crop_images=True enables better layout detection and image extraction
+        pipeline_results = glm_ocr.parse(
+            image_paths,
+            save_layout_visualization=False,
+            return_crop_images=True
+        )
 
         # 转换为web app期望的格式
         all_results = []
