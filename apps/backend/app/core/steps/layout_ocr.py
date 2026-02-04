@@ -142,17 +142,43 @@ async def _call_ocr_service(
             block_index = block_idx
             normalized_box = vlm_bbox_convert(block_bbox, page_width, page_height)
 
-            # 如果 label 为 image，则裁剪图片并添加到 image_path 字段
+            # 如果 label 为 image，处理图片
             image_path_field = None
             if block_label == "image":
                 try:
                     # 生成分割文件名
                     split_filename = f"split_{page_num}_{block_idx:04d}.png"
                     split_path = os.path.join(output_dir, split_filename)
-                    crop_image_by_bbox_to_path(image_file, normalized_box, split_path)
-                    image_path_field = split_path
-                    ref_image_paths.append(image_path_field)
-                    logger.info(f"裁剪图片块 {block_idx}: {split_filename}")
+                    
+                    # Check if content is a URL to a pre-cropped image from MaaS API
+                    if block_content and isinstance(block_content, str) and block_content.startswith("http"):
+                        # Download the pre-cropped image from MaaS API
+                        try:
+                            async with httpx.AsyncClient(timeout=30.0) as client:
+                                response = await client.get(block_content)
+                                if response.status_code == 200:
+                                    with open(split_path, "wb") as f:
+                                        f.write(response.content)
+                                    image_path_field = split_path
+                                    ref_image_paths.append(image_path_field)
+                                    logger.info(f"Downloaded image block {block_idx} from MaaS: {split_filename}")
+                                else:
+                                    logger.warning(f"Failed to download image {block_idx}: HTTP {response.status_code}")
+                                    # Fallback to local cropping
+                                    crop_image_by_bbox_to_path(image_file, normalized_box, split_path)
+                                    image_path_field = split_path
+                                    ref_image_paths.append(image_path_field)
+                        except Exception as download_err:
+                            logger.warning(f"Download failed for image {block_idx}: {download_err}, falling back to local crop")
+                            crop_image_by_bbox_to_path(image_file, normalized_box, split_path)
+                            image_path_field = split_path
+                            ref_image_paths.append(image_path_field)
+                    else:
+                        # No URL provided, fall back to local cropping
+                        crop_image_by_bbox_to_path(image_file, normalized_box, split_path)
+                        image_path_field = split_path
+                        ref_image_paths.append(image_path_field)
+                        logger.info(f"Cropped image block {block_idx} locally: {split_filename}")
                 except Exception as e:
                     logger.warning(f"裁剪图片块 {block_idx} 失败: {str(e)}")
 

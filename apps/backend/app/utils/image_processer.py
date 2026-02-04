@@ -50,12 +50,29 @@ def crop_image_by_bbox_to_path(
 
     # 打开源图片
     with Image.open(source_image_path) as img:
+        # Get actual image dimensions
+        img_width, img_height = img.size
+        
         # bbox格式: [x1, y1, x2, y2]
         # PIL的crop使用: (left, upper, right, lower)
         x1, y1, x2, y2 = bbox
-
-        # 裁剪图片
-        cropped_img = img.crop((x1, y1, x2, y2))
+        
+        # Clamp coordinates to image bounds to prevent black images
+        # when bbox extends beyond image dimensions
+        x1 = max(0, min(x1, img_width))
+        y1 = max(0, min(y1, img_height))
+        x2 = max(0, min(x2, img_width))
+        y2 = max(0, min(y2, img_height))
+        
+        # Ensure valid crop area (x2 > x1 and y2 > y1)
+        if x2 <= x1 or y2 <= y1:
+            # If crop area is invalid, create a small placeholder or log warning
+            # For now, create a 1x1 transparent image as fallback
+            from PIL import Image as PILImage
+            cropped_img = PILImage.new('RGBA', (1, 1), (0, 0, 0, 0))
+        else:
+            # 裁剪图片
+            cropped_img = img.crop((x1, y1, x2, y2))
 
         # 保存裁剪后的图片
         cropped_img.save(output_path)
