@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import type { RefObject } from 'react'
 import type { Block } from '../store/useOcrStore'
+import { maasToPage } from '../libs/blockUtils'
 
 export function usePdfScrollToBlock(
 	clickedBlockId: number | null,
@@ -132,15 +133,17 @@ export function usePdfScrollToBlock(
 			const pageOffsetY = pageRect.top - containerRect.top + scrollContainer.scrollTop
 
 			const canvasRect = canvas.getBoundingClientRect()
-			// Bbox is in 0-1000 normalized coordinates from MaaS API
-			// Scale to actual displayed canvas size
-			const scaleY = canvasRect.height / 1000
 
-			// bbox 现在是相对坐标（每页内的坐标），直接使用
-			const yWithinPage = clickedBlock.bbox?.[1] ?? 0
+			// Use MaaS Padded coordinate system logic
+			const maxDim = Math.max(pdfOriginalWidth, pdfOriginalHeight)
+			const padY = (maxDim - pdfOriginalHeight) / 2
 
-			// 计算目标位置：页面偏移 + bbox 的 y 坐标 * 缩放比例
-			const targetY = pageOffsetY + yWithinPage * scaleY - 100 // 100px 的顶部边距
+			// bbox[1] is MaaS Y (0-1000). Convert to Page Fraction (0-1).
+			const yWithinPageMaaS = clickedBlock.bbox?.[1] ?? 0
+			const yFrac = maasToPage(yWithinPageMaaS, pdfOriginalHeight, maxDim, padY)
+
+			// 计算目标位置：页面偏移 + yFrac * 页面像素高度
+			const targetY = pageOffsetY + yFrac * canvasRect.height - 100 // 100px 的顶部边距
 
 			// 执行滚动
 			scrollContainer.scrollTo({

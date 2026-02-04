@@ -6,6 +6,7 @@ import { usePdfPageMetrics } from '@/hooks/usePdfPageMetrics'
 import { useFileBlockInteraction } from '@/hooks/useFileBlockInteraction'
 import { usePdfScrollToBlock } from '@/hooks/usePdfScrollToBlock'
 import { HighlightOverlay } from '@/components/ocr/HighlightOverlay'
+import { maasToPage } from '../../libs/blockUtils'
 
 interface FilePreviewProps {
 	file: UploadedFile | null
@@ -41,7 +42,8 @@ export function FilePreview({ file, result }: FilePreviewProps) {
 
 	// 计算图片的缩放比例和偏移量
 	// Now using 0-1000 normalized coordinates for bbox
-	const [imageScale, setImageScale] = useState({ x: 1, y: 1, offsetX: 0, offsetY: 0 })
+	// 计算图片的缩放比例和偏移量
+	const [imageMetric, setImageMetric] = useState({ width: 0, height: 0, offsetX: 0, offsetY: 0 })
 	useEffect(() => {
 		if (!imageRef.current || file?.type === 'application/pdf') return
 
@@ -53,16 +55,11 @@ export function FilePreview({ file, result }: FilePreviewProps) {
 			const containerRect = img.parentElement?.getBoundingClientRect()
 			if (!containerRect) return
 
-			// Bbox is in 0-1000 normalized coordinates from MaaS API
-			// Calculate scale from displayed size to 1000
-			const scaleX = imgRect.width / 1000
-			const scaleY = imgRect.height / 1000
-
 			// 计算图片在容器中的偏移量（考虑 object-contain 的居中效果）
 			const offsetX = imgRect.left - containerRect.left
 			const offsetY = imgRect.top - containerRect.top
 
-			setImageScale({ x: scaleX, y: scaleY, offsetX, offsetY })
+			setImageMetric({ width: imgRect.width, height: imgRect.height, offsetX, offsetY })
 		}
 
 		// 图片加载完成后更新
@@ -147,21 +144,58 @@ export function FilePreview({ file, result }: FilePreviewProps) {
 		const metrics = pdfPageMetrics[pageNumber]
 		if (!metrics) return null
 
-		// Bbox is in 0-1000 normalized coordinates from MaaS API
-		// Scale to actual displayed canvas size
-		const scaleX = metrics.width / 1000
-		const scaleY = metrics.height / 1000
+		// MaaS uses 0-1000 coordinates relative to PADDED square image
+		const maxDim = Math.max(pdfOriginalWidth, pdfOriginalHeight)
+		const padX = (maxDim - pdfOriginalWidth) / 2
+		const padY = (maxDim - pdfOriginalHeight) / 2
+
+		// Convert MaaS -> Page Fraction
+		const xFrac = maasToPage(activeBlock.bbox[0], pdfOriginalWidth, maxDim, padX)
+		const yFrac = maasToPage(activeBlock.bbox[1], pdfOriginalHeight, maxDim, padY)
+
+		// Convert Length -> Fraction (no offset padding)
+		const wFrac = (activeBlock.width / 1000 * maxDim) / pdfOriginalWidth
+		const hFrac = (activeBlock.height / 1000 * maxDim) / pdfOriginalHeight
 
 		return (
 			<HighlightOverlay
 				block={activeBlock}
 				showCopyButton={showCopyButton}
 				style={{
-					left: metrics.offsetX + activeBlock.bbox[0] * scaleX,
-					top: metrics.offsetY + activeBlock.bbox[1] * scaleY,
-					width: activeBlock.width * scaleX,
-					height: activeBlock.height * scaleY
+					left: metrics.offsetX + xFrac * metrics.width,
+					top: metrics.offsetY + yFrac * metrics.height,
+					width: wFrac * metrics.width,
+					height: hFrac * metrics.height
 				}}
+			/>
+		)
+	}
+
+	const renderImageOverlay = () => {
+		if (!activeBlock || !activeBlock.bbox || !imageRef.current) return null
+
+		const natW = imageRef.current.naturalWidth
+		const natH = imageRef.current.naturalHeight
+		const maxDim = Math.max(natW, natH)
+		const padX = (maxDim - natW) / 2
+		const padY = (maxDim - natH) / 2
+
+		const xFrac = maasToPage(activeBlock.bbox[0], natW, maxDim, padX)
+		const yFrac = maasToPage(activeBlock.bbox[1], natH, maxDim, padY)
+		const wFrac = (activeBlock.width / 1000 * maxDim) / natW
+		const hFrac = (activeBlock.height / 1000 * maxDim) / natH
+
+		return (
+			<HighlightOverlay
+				block={activeBlock}
+				showCopyButton={showCopyButton}
+				style={{
+					left: imageMetric.offsetX + xFrac * imageMetric.width,
+					top: imageMetric.offsetY + yFrac * imageMetric.height,
+					width: wFrac * imageMetric.width,
+					height: hFrac * imageMetric.height
+				}}
+				copyButtonClassName='right-6'
 			/>
 		)
 	}
@@ -200,19 +234,7 @@ export function FilePreview({ file, result }: FilePreviewProps) {
 							alt={file.name}
 							className='max-w-full max-h-full object-contain'
 						/>
-						{activeBlock && activeBlock.bbox && (
-							<HighlightOverlay
-								block={activeBlock}
-								showCopyButton={showCopyButton}
-								style={{
-									left: imageScale.offsetX + activeBlock.bbox[0] * imageScale.x,
-									top: imageScale.offsetY + activeBlock.bbox[1] * imageScale.y,
-									width: activeBlock.width * imageScale.x,
-									height: activeBlock.height * imageScale.y
-								}}
-								copyButtonClassName='right-6'
-							/>
-						)}
+						{renderImageOverlay()}
 					</div>
 				) : (
 					<div className='h-full flex items-center justify-center text-gray-500'>
