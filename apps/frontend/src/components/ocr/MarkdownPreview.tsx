@@ -146,7 +146,7 @@ export function MarkdownPreview() {
 
 
 	return (
-		<div ref={markdownRef} className='h-full overflow-y-auto p-6 markdown-body'>
+		<div ref={markdownRef} className='h-full overflow-y-auto p-6 pb-32 markdown-body'>
 			<div
 				className='max-w-3xl mx-auto relative'
 			>
