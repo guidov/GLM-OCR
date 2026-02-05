@@ -149,7 +149,6 @@ export function MarkdownPreview() {
 		<div ref={markdownRef} className='h-full overflow-y-auto p-6 markdown-body'>
 			<div
 				className='max-w-3xl mx-auto relative'
-				style={{ height: totalHeight }}
 			>
 				{blocks.map((block, index) => {
 					if (!block.id) return null
