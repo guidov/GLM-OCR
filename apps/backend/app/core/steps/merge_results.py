@@ -98,39 +98,66 @@ async def _merge_to_markdown(
     result = {}
     result["metadata"] = context.metadata
     merge_res_layout = []
+    transformed_pages = []
+    
     total_pages = len(pages)
-    for i, page in enumerate(pages):
-        # page_num = page.get("page_number", i + 1)
+    for p_idx, page in enumerate(pages):
+        page_num = page.get("page_index", p_idx + 1)
         layout = page.get("layout", {}).get("blocks", [])
-        for i, block in enumerate(layout):
+        page_markdown = []
+        page_images = []
+        
+        for b_idx, block in enumerate(layout):
             text = block.get("content", "")
             layout_type = block.get("layout_type", "")
-            if layout_type == "image":
-                img_name = block.get("image_path")
-                # 将相对路径转换为绝对路径
-                if img_name and not os.path.isabs(img_name):
-                    img_name = os.path.abspath(img_name)
-
-                text = f'<div style="text-align: center;"><img src="http://localhost:8000/api/v1/tasks/file?path={img_name}" alt="Image"/></div>\n'
+            image_path = block.get("image_path")
+            
+            if layout_type == "image" and image_path:
+                # Convert to absolute path
+                if not os.path.isabs(image_path):
+                    image_path = os.path.abspath(image_path)
+                
+                img_url = f"http://localhost:8001/api/v1/tasks/file?path={image_path}"
+                text = f'<div style="text-align: center;"><img src="{img_url}" alt="Image"/></div>\n'
+                
+                page_images.append({
+                    "id": f"img_{page_num}_{b_idx}",
+                    "image_path": image_path,
+                    "url": img_url,
+                    "bbox": block.get("layout_box")
+                })
+                
             markdown_lines.append(f"{text}\n")
+            page_markdown.append(f"{text}\n")
+            
             merge_res_layout.append(
                 {
                     "block_content": text,
                     "bbox": block.get("layout_box"),
                     "block_id": block.get("index"),
                     "page_index": block.get("page_index"),
-                    "layout_type": layout_type,  # Preserve layout type for frontend
+                    "layout_type": layout_type,
                 }
             )
+            
+        transformed_pages.append({
+            "index": page_num - 1,
+            "markdown": "".join(page_markdown),
+            "images": page_images
+        })
+
     if progress_callback:
-        progress = 100.0
-        await progress_callback(progress, f"Merging page {i + 1}/{total_pages}")
+        await progress_callback(100.0, f"Merged {total_pages} pages")
+        
     result["full_markdown"] = "".join(markdown_lines)
     result["layout"] = merge_res_layout
-    # 写入文件
+    result["pages"] = transformed_pages
+    
+    # Write files
     md_output_path = str(Path(output_dir) / "result.md")
     with open(md_output_path, "w", encoding="utf-8") as f:
         f.writelines(markdown_lines)
+        
     json_output_path = str(Path(output_dir) / "merged.json")
     with open(json_output_path, "w", encoding="utf-8") as f:
         json.dump(result, f, ensure_ascii=False, indent=2)

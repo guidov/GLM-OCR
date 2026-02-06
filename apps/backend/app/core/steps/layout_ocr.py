@@ -126,33 +126,49 @@ async def _call_ocr_service(
     page_height = page_size.get("height")
     block_idx = 1
     ref_image_paths = []
+    
     for i, image_file in enumerate(image_files):
         page_num = i + 1
-        result = await cli.process_single_image(image_file, custom_url=custom_url)
+        
         if progress_callback:
             progress = (i / page_count) * 100
             await progress_callback(
                 progress, f"Processing page {page_num}/{page_count}"
             )
+            
+        try:
+            result = await cli.process_single_image(image_file, custom_url=custom_url)
+        except Exception as e:
+            logger.error(f"Failed to process page {page_num}: {e}")
+            # Continue with empty page results to avoid total failure
+            result = []
+
         page_blocks = []
         for idx, block in enumerate(result):
             block_label = block.get("label", "text")
             block_bbox = block.get("bbox_2d", [0, 0, 0, 0])
             block_content = block.get("content", None)
             block_index = block_idx
-            normalized_box = vlm_bbox_convert(block_bbox, page_width, page_height)
+            
+            # Map coordinates to layout box (0-1000 range)
+            try:
+                normalized_layout_box = [
+                    int(block_bbox[0] / page_width * 1000),
+                    int(block_bbox[1] / page_height * 1000),
+                    int(block_bbox[2] / page_width * 1000),
+                    int(block_bbox[3] / page_height * 1000),
+                ]
+            except Exception:
+                normalized_layout_box = block_bbox
 
-            # 如果 label 为 image，处理图片
+            # 处理图片
             image_path_field = None
             if block_label == "image":
                 try:
-                    # 生成分割文件名
                     split_filename = f"split_{page_num}_{block_idx:04d}.png"
                     split_path = os.path.join(output_dir, split_filename)
                     
-                    # Check if content is a URL to a pre-cropped image from MaaS API
                     if block_content and isinstance(block_content, str) and block_content.startswith("http"):
-                        # Download the pre-cropped image from MaaS API
                         try:
                             async with httpx.AsyncClient(timeout=30.0) as client:
                                 response = await client.get(block_content)
@@ -161,58 +177,32 @@ async def _call_ocr_service(
                                         f.write(response.content)
                                     image_path_field = split_path
                                     ref_image_paths.append(image_path_field)
-                                    logger.info(f"Downloaded image block {block_idx} from MaaS: {split_filename}")
                                 else:
-                                    logger.warning(f"Failed to download image {block_idx}: HTTP {response.status_code}")
-                                    # Fallback to local cropping
-                                    crop_image_by_bbox_to_path(image_file, normalized_box, split_path)
+                                    crop_image_by_bbox_to_path(image_file, vlm_bbox_convert(block_bbox, page_width, page_height), split_path)
                                     image_path_field = split_path
                                     ref_image_paths.append(image_path_field)
-                        except Exception as download_err:
-                            logger.warning(f"Download failed for image {block_idx}: {download_err}, falling back to local crop")
-                            crop_image_by_bbox_to_path(image_file, normalized_box, split_path)
+                        except Exception:
+                            crop_image_by_bbox_to_path(image_file, vlm_bbox_convert(block_bbox, page_width, page_height), split_path)
                             image_path_field = split_path
                             ref_image_paths.append(image_path_field)
                     else:
-                        # No URL provided, fall back to local cropping
-                        crop_image_by_bbox_to_path(image_file, normalized_box, split_path)
+                        crop_image_by_bbox_to_path(image_file, vlm_bbox_convert(block_bbox, page_width, page_height), split_path)
                         image_path_field = split_path
                         ref_image_paths.append(image_path_field)
-                        logger.info(f"Cropped image block {block_idx} locally: {split_filename}")
-                except Exception as e:
-                    logger.warning(f"裁剪图片块 {block_idx} 失败: {str(e)}")
-
-            # 构建块信息，添加 image_path 字段
-            # MaaS API returns coordinates in pixels (relative to the image size)
-            # We normalize them to 0-1000 range for frontend consistency
-            try:
-                # Debug logging to trace coordinate transformation
-                logger.info(f"DEBUG: Block {block_index} Raw Bbox: {block_bbox}, Page Size: {page_width}x{page_height}")
-                
-                normalized_layout_box = [
-                    int(block_bbox[0] / page_width * 1000),
-                    int(block_bbox[1] / page_height * 1000),
-                    int(block_bbox[2] / page_width * 1000),
-                    int(block_bbox[3] / page_height * 1000),
-                ]
-                
-                logger.info(f"DEBUG: Block {block_index} Normalized: {normalized_layout_box}")
-            except Exception as e:
-                logger.error(f"DEBUG: Normalization failed: {e}")
-                # Fallback if dimensions are invalid
-                normalized_layout_box = block_bbox
+                except Exception:
+                    pass
 
             block_info = {
                 "layout_type": block_label,
                 "layout_box": normalized_layout_box,
                 "content": block_content,
                 "index": block_index,
-                "image_path": image_path_field,  # 图片类型时包含裁剪后的路径
+                "image_path": image_path_field,
                 "page_index": page_num,
             }
             page_blocks.append(block_info)
             block_idx += 1
-        # 示例：每页的OCR结果
+            
         pages_result.append(
             {
                 "page_index": page_num,
