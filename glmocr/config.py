@@ -56,6 +56,20 @@ class OCRApiConfig(_BaseConfig):
     connection_pool_size: Optional[int] = 128
 
 
+class OllamaApiConfig(_BaseConfig):
+    """Configuration for Ollama GLM-OCR API (local self-hosted).
+
+    When using Ollama mode, the SDK acts as a thin wrapper that forwards requests
+    to a local Ollama instance running the glm-ocr vision model.
+    """
+
+    # Enable Ollama mode
+    enabled: bool = False
+
+    # API endpoint (default: Ollama chat API)
+    api_url: str = "http://localhost:11434/api/chat"
+
+
 class MaaSApiConfig(_BaseConfig):
     """Configuration for Zhipu MaaS GLM-OCR API.
 
