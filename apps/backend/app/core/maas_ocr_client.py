@@ -77,7 +77,9 @@ class MaaSOcrClient:
         if hasattr(self, '_initialized') and self._initialized:
             return
 
-        self.config_path = config_path or "/home/guido/zai_test/GLM-OCR/glmocr/config.yaml"
+        # Use local config.yaml from the GLM-OCR submodule
+        local_config = _glm_ocr_root / "glmocr" / "config.yaml"
+        self.config_path = config_path or str(local_config)
         self._glm_ocr = None
         self._initialized = True
 
